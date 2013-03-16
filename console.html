@@ -1,0 +1,655 @@
+<!DOCTYPE HTML>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title></title>
+  <link rel="stylesheet" type="text/css" href="css/bootstrap.css" />
+  <script type="text/javascript" src="js/jquery.js"></script>
+  <script type="text/javascript" src="js/bootstrap.js"></script>
+  <style type="text/css">
+.page {
+  margin-top: 50px;
+}
+
+#uint8-field > table {
+  border-collapse: collapse;
+  border: none;
+  width: 768px;
+  height: 256px;
+  border-left: 1px solid #ccc;
+  border-right: 1px solid #ccc;
+}
+
+#uint8-field > table thead th {
+  font-size: 10px;
+  color: #ccc;
+  border-left: 1px dotted #ccc;
+  border-bottom: 1px solid #ccc;
+  padding: 0 0 0 1px;
+  margin: 0 0;
+  text-align: left;
+  vertical-align: left;
+}
+
+#uint8-field > table tbody td,
+#uint8-field > table tfoot td {
+  width: 2px;
+  height: 8px;
+  border-left: 1px solid transparent;
+  margin: 0 0;
+}
+
+#uint8-field > table tbody td.grid,
+#uint8-field > table tfoot td.grid {
+  border-left: 1px dotted #ccc;
+}
+
+form {
+  margin-top: 1em;
+}
+
+form fieldset.well {
+  padding: 8px 8px 4px 8px;
+}
+  
+form .form-field label {
+  display: inline-block;
+}
+
+.error {
+  color: red;
+}
+
+td.color,
+th.color {
+  width: 36px;
+}
+
+td.color {
+  text-align: center;
+  vertical-align: middle;
+}
+
+td.color .legend {
+  display: inline-block;
+  border: 2px solid #ccc;
+  border-radius: 2px;
+  width: 14px;
+  height: 14px;
+  background-color: #fff;
+}
+
+th.bits,
+td.bits {
+  width: 480px;
+}
+
+th.range,
+td.range {
+  width: 18ex;
+}
+
+table.bits-table {
+  width: auto;
+  border: 1px solid #ccc;
+  border-collapse: collapse;
+  float: left;
+  margin-right: 1ex;
+}
+
+table.bits-table tr td,
+table.bits-table tr td:hover,
+table.bits-table tr th,
+table.bits-table tr th:hover {
+  border: 1px solid #ccc;
+  font-size: 10px;
+  height: 10px;
+  line-height: 10px;
+  padding: 2px 2px;
+  margin: 0 0;
+}
+
+table.bits-table tbody tr td {
+  background-color: #fff !important;
+}
+
+table.bits-table thead tr th,
+table.bits-table thead:hover tr th {
+  font-family: Helvetica, Arial;
+  font-weight: bold;
+  background-color: #888 !important;
+  color: #fff;
+}
+
+table.bits-table tr td {
+  font-family: Courier;
+}
+
+  </style>
+  <script type="text/javascript">
+var RGB = function(d, g, b) {
+  if (this == window)
+    return new arguments.callee(d, g, b);
+  var r = 0.;
+  var td = typeof d;
+  if (typeof g != 'undefined') {
+    r = d;
+  } else {
+    if (td == 'undefined') {
+      g = b = 0.;
+    } else if (td == 'number' || d instanceof Number) {
+      r = (d >> 16) & 256,
+      g = (d >> 8) & 256,
+      b = d & 256;
+    } else if (td == 'string' || td instanceof String) {
+      var m = /^#?(?:([0-9a-fA-F]{6})|([0-9a-fA-F]{3}))/.exec(d);
+      if (typeof m[2] != "undefined" && m[2] != "") {
+        r = parseInt(m[2].substr(0, 1), 16);
+        g = parseInt(m[2].substr(1, 1), 16);
+        b = parseInt(m[2].substr(2, 1), 16);
+        r |= (r << 4);
+        g |= (g << 4);
+        b |= (b << 4);
+      } else {
+        r = parseInt(m[1].substr(0, 2), 16);
+        g = parseInt(m[1].substr(2, 2), 16);
+        b = parseInt(m[1].substr(4, 2), 16);
+      }
+    } else {
+      r = d.r;
+      g = d.g;
+      b = d.b;
+    }
+  }
+  this.r = r;
+  this.g = g;
+  this.b = b;
+};
+
+var HSV = function(rgb, s, v) {
+  if (this == window)
+    return new arguments.callee(rgb, s, v);
+  var h = 0.;
+  if (typeof s != 'undefined') {
+    h = rgb;
+  } else {
+    if (typeof rgb == 'undefined') {
+      s = v = 0.;
+    } else {
+      var r = 0., g = 0., b = 0.;
+      if (typeof rgb == 'object') {
+        if (rgb instanceof Array) {
+          r = rgb[0];
+          g = rgb[1];
+          b = rgb[2];
+        } else {
+          r = rgb.r;
+          g = rgb.g;
+          b = rgb.b;
+        }
+      }
+      var max = Math.max(r, g, b), min = Math.min(r, g, b);
+      var c = max - min;
+
+      if (max > min) {
+        switch (max) {
+        case r: h = (g - b) / c;   break;
+        case g: h = (b - r) / c + 2; break;
+        case b: h = (r - g) / c + 4; break;
+        }
+        if (h < 0.)
+          h += 6.;
+        h *= 60.;
+      } else {
+        h = 0.;
+      }
+
+      s = c / max;
+      v = max / 256.;
+    }
+  }
+  this.h = h;
+  this.s = s;
+  this.v = v;
+};
+
+RGB.prototype = {
+  toString: function() {
+    return ((this.r < 16 ? '0': '') + this.r.toString(16))
+         + ((this.g < 16 ? '0': '') + this.g.toString(16))
+         + ((this.b < 16 ? '0': '') + this.b.toString(16));
+  },
+
+  toHSV: function() {
+    return new HSV(this);
+  },
+
+  brighten: function(a) {
+    return this.toHSV().brighten(a).toRGB()
+  },
+
+  darken: function(a) {
+    return this.toHSV().darken(a).toRGB()
+  }
+};
+
+HSV.prototype = {
+  toRGB: function() {
+    var hi = this.h / 60, hn = 0 | hi, f = hi - hn, s = this.s, v = this.v;
+    switch (hn) {
+    case 0: return new RGB(
+      0 | Math.min(255, v * 256.),
+      0 | Math.min(255, (v * (1. - (1. - f) * s)) * 256.),
+      0 | Math.min(255, (v * (1. - s)) * 256.)
+    );
+    case 1: return new RGB(
+      0 | Math.min(255, (v * (1. - f * s)) * 256.),
+      0 | Math.min(255, v * 256.),
+      0 | Math.min(255, (v * (1. - s)) * 256.)
+    );
+    case 2: return new RGB(
+      0 | Math.min(255, (v * (1. - s)) * 256.),
+      0 | Math.min(255, v * 256.),
+      0 | Math.min(255, (v * (1. - (1. - f) * s)) * 256.)
+    );
+    case 3: return new RGB(
+      0 | Math.min(255, (v * (1. - s)) * 256.),
+      0 | Math.min(255, (v * (1. - f * s)) * 256.),
+      0 | Math.min(255, v * 256.)
+    );
+    case 4: return new RGB(
+      0 | Math.min(255, (v * (1. - (1. - f) * s)) * 256.),
+      0 | Math.min(255, (v * (1. - s)) * 256.),
+      0 | Math.min(255, v * 256.)
+    );
+    case 5: return new RGB(
+      0 | Math.min(255., v * 256.),
+      0 | Math.min(255., (v * (1. - s)) * 256.),
+      0 | Math.min(255., (v * (1. - f * s)) * 256.)
+    );
+    }
+  },
+
+  darken: function(a) { return this.brighten(-a); },
+
+  brighten: function(a) {
+    this.v = Math.min(1., Math.max(0., this.v + a));
+    return this;
+  },
+
+  saturate: function(a) {
+    this.s = Math.min(1., Math.max(0., this.s + a));
+    return this;
+  },
+
+  rotate: function(a) {
+    this.h = (this.h + a) % 360.;
+    return this;
+  },
+
+  toString: function() {
+    return "{ h: " + this.h + ", s: " + this.s + ", v: " + this.v + "}";
+  }
+};
+
+function zeroPaddedInt(n, base, size) {
+  var s = n.toString(base);
+  for (var i = size - s.length; --i >= 0;)
+    s = '0' + s;
+  return s;
+}
+
+var colors = [];
+for (var i = 0; i < 16; i++)
+  colors.push(HSV(Math.min(255, (i * 32) & 255), .9, 1).toRGB());
+
+var types = [
+  {
+    name: 'Packed integral type',
+    initialize: function ($bits) {
+      buildBitsTable().appendTo($bits);
+    }
+  },
+  {
+    name: 'Int8',
+    initialize: function ($bits) {
+      buildBitsTable().appendTo($bits);
+      fillBitsTable(buildBitsTable(), 'xxxxxxxx').appendTo($bits);
+    }
+  },
+  {
+    name: 'Int16',
+    initialize: function ($bits) {
+      buildBitsTable().appendTo($bits);
+      fillBitsTable(buildBitsTable(), 'xxxxxxxx').appendTo($bits);
+      fillBitsTable(buildBitsTable(), 'xxxxxxxx').appendTo($bits);
+    }
+  },
+  {
+    name: 'Int32',
+    initialize: function ($bits) {
+      buildBitsTable().appendTo($bits);
+      fillBitsTable(buildBitsTable(), 'xxxxxxxx').appendTo($bits);
+      fillBitsTable(buildBitsTable(), 'xxxxxxxx').appendTo($bits);
+      fillBitsTable(buildBitsTable(), 'xxxxxxxx').appendTo($bits);
+      fillBitsTable(buildBitsTable(), 'xxxxxxxx').appendTo($bits);
+    }
+  },
+  {
+    name: 'Uint8',
+    initialize: function ($bits) {
+      buildBitsTable().appendTo($bits);
+      fillBitsTable(buildBitsTable(), 'xxxxxxxx').appendTo($bits);
+    }
+  },
+  {
+    name: 'Uint16',
+    initialize: function ($bits) {
+      buildBitsTable().appendTo($bits);
+      fillBitsTable(buildBitsTable(), 'xxxxxxxx').appendTo($bits);
+      fillBitsTable(buildBitsTable(), 'xxxxxxxx').appendTo($bits);
+    }
+  },
+  {
+    name: 'Uint32',
+    initialize: function ($bits) {
+      buildBitsTable().appendTo($bits);
+      fillBitsTable(buildBitsTable(), 'xxxxxxxx').appendTo($bits);
+      fillBitsTable(buildBitsTable(), 'xxxxxxxx').appendTo($bits);
+      fillBitsTable(buildBitsTable(), 'xxxxxxxx').appendTo($bits);
+      fillBitsTable(buildBitsTable(), 'xxxxxxxx').appendTo($bits);
+    }
+  },
+  {
+    name: 'Float',
+    initialize: function ($bits) {
+      buildBitsTable().appendTo($bits);
+      fillBitsTable(buildBitsTable(), 'xxxxxxxx').appendTo($bits);
+      fillBitsTable(buildBitsTable(), 'xxxxxxxx').appendTo($bits);
+      fillBitsTable(buildBitsTable(), 'xxxxxxxx').appendTo($bits);
+      fillBitsTable(buildBitsTable(), 'xxxxxxxx').appendTo($bits);
+    }
+  },
+  {
+    name: 'Double',
+    initialize: function ($bits) {
+      buildBitsTable().appendTo($bits);
+      fillBitsTable(buildBitsTable(), 'xxxxxxxx').appendTo($bits);
+      fillBitsTable(buildBitsTable(), 'xxxxxxxx').appendTo($bits);
+      fillBitsTable(buildBitsTable(), 'xxxxxxxx').appendTo($bits);
+      fillBitsTable(buildBitsTable(), 'xxxxxxxx').appendTo($bits);
+      fillBitsTable(buildBitsTable(), 'xxxxxxxx').appendTo($bits);
+      fillBitsTable(buildBitsTable(), 'xxxxxxxx').appendTo($bits);
+      fillBitsTable(buildBitsTable(), 'xxxxxxxx').appendTo($bits);
+      fillBitsTable(buildBitsTable(), 'xxxxxxxx').appendTo($bits);
+    }
+  },
+  {
+    name: 'Array',
+    initialize: function ($bits) {
+      buildBitsTable().appendTo($bits);
+      $bits.append('........');
+    }
+  },
+  {
+    name: 'Map',
+    initialize: function ($bits) {
+      buildBitsTable().appendTo($bits);
+      $bits.append('........');
+    }
+  },
+  {
+    name: 'TypedArray',
+    initialize: function ($bits) {
+      buildBitsTable().appendTo($bits);
+      fillBitsTable(buildBitsTable(), 'xxxxxxxx').appendTo($bits);
+      $bits.append('........');
+    }
+  }
+];
+</script>
+</head>
+<body>
+  <div class="navbar navbar-fixed-top">
+    <div class="navbar-inner">
+      <div class="container">
+        <span class="brand">AnyPack Builder</span>
+      </div>
+    </div>
+  </div>
+  <div class="container page">
+    <div id="uint8-field">
+      <table>
+        <thead>
+          <tr>
+            <script type="text/javascript">
+for (var i = 0; i < 256; i += 16) {
+  document.write('<th colspan="16">0x' + (i < 16 ? "0": "") + i.toString(16) + '</th>');
+}
+            </script>
+          </tr>
+        </thead>
+        <tbody>
+        </tbody>
+        <tfoot>
+        </tfoot>
+        <script type="text/javascript">
+          var $uint8Field = $('script:last').parent();
+          var addRowInUint8Field;
+          (function () {
+            function _() {
+              var $tr = $('<tr></tr>');
+              for (var i = 0; i < 256; i++) {
+                var $td = $('<td></td>');
+                if ((i % 16) == 0)
+                  $td.addClass('grid');
+                $td.attr('data-value', i);
+                $td.appendTo($tr);
+              }
+              return $tr;
+            };
+            addRowInUint8Field = function addRowInUint8Field() {
+              var $tr = _();
+              $tr.appendTo($uint8Field.find('tbody'));
+              return { $: $tr, children: $tr.children(), handlers: {} };
+            };
+            _().appendTo($uint8Field.find('tfoot'));
+          })();
+        </script>
+      </table>  
+    </div>
+    <form>
+      <fieldset class="well">
+        <div class="form-field">
+          <label>Prefix bits</label>
+          <input type="text" id="prefixBits" style="width:2ex" maxlength="1" value="1" />
+        </div>
+      </fieldset>
+    </form>
+    <div id="allocation-table">
+      <table class="table" style="margin-bottom:0">
+        <thead>
+          <tr>
+            <th class="color">Color</th>
+            <th class="bits">Bits</th>
+            <th class="range">First byte range</th>
+            <th class="type">Type</th>
+          </tr>
+        </thead>
+      </table>
+      <div style="overflow-y: scroll; height: 240px">
+        <table id="allocation-table" class="table">
+          <tbody>
+          </tbody>
+          <script type="text/javascript">
+            var $allocationTable = $('script:last').parent();
+            var addRowInAllocationTable;
+            var buildBitsTable, fillBitsTable;
+            (function () {
+              buildBitsTable = function buildBitsTable() {
+                var $thead = $('<thead></thead>');
+                var $tbody = $('<tbody></tbody>');
+                var $theadTr = $('<tr></tr>').appendTo($thead);
+                var $tbodyTr = $('<tr></tr>').appendTo($tbody);
+                for (var i = 0; i < 8; i++) {
+                  $theadTr.append($('<th></th>').text(i));
+                  $tbodyTr.append($('<td></td>').attr('data-value', i));
+                }
+                return $('<table class="bits-table">')
+                  .append($thead)
+                  .append($tbody);
+              }
+              fillBitsTable = function fillBitsTable($bitsTable, str) {
+                var tds = $bitsTable.find('tbody td');
+                for (var i = 0; i < tds.length; i++)
+                  $(tds[i]).text(str.substr(i, 1));
+                return $bitsTable;
+              }
+
+              var buildTypeSelector = function () {
+                var $select = $('<select></select>');
+                for (var i = 0; i < types.length; i++) {
+                  var entry = types[i];
+                  $('<option></option>').attr('value', i).text(entry.name).appendTo($select);
+                }
+                return $select;
+              };
+
+              addRowInAllocationTable = function addRowInAllocationTable() {
+                var $tr = $('<tr></tr>');
+                var $color = $('<td class="color"><span class="legend"></span></td>').appendTo($tr);
+                var $bits = $('<td class="bits"></td>').appendTo($tr);
+                var $range = $('<td class="range"></td>').appendTo($tr);
+                var $type = $('<td class="type"></td>').appendTo($tr);
+                var $typeSelect = buildTypeSelector().appendTo($type);
+                $tr.appendTo($allocationTable.children('tbody'));
+                return { $: $tr };
+              };
+            })();
+          </script>
+        </table>
+      </div>
+    </div>
+  </div>
+  <script type="text/javascript">
+    (function () {
+      var rows = [];
+      var selectedRow = null;
+      var prefixBits = null;
+      var nextColorIndex = 0;
+
+      function updateRow(row, nextSelection) {
+        var currentSelection;
+        currentSelection = row.selection;
+        for (i = currentSelection.index; i < currentSelection.index + currentSelection.extent; i++)
+          row.uint8Field.children[i].style.backgroundColor = 'transparent';
+
+        row.selection = nextSelection;
+        currentSelection = row.selection;
+        for (i = currentSelection.index; i < currentSelection.index + currentSelection.extent; i++)
+          row.uint8Field.children[i].style.backgroundColor = '#' + row.color;
+        row.allocationTable.$.find('td.color .legend').css('background-color', '#' + row.color);
+        fillBitsTable(row.allocationTable.$.find('td.bits table.bits-table:first'), currentSelection.extent > 0 ? zeroPaddedInt(currentSelection.index, 2, 8).substr(0, prefixBits) + "XXXXXXXX".substr(0, 8 - prefixBits): '');
+        row.allocationTable.$.find('td.range').text(currentSelection.extent > 0 ? "0x" + zeroPaddedInt(currentSelection.index, 16, 2) + (currentSelection.extent > 1 ? "〜0x" + zeroPaddedInt(currentSelection.index + currentSelection.extent - 1, 16, 2): ""): "-");
+        row.selection = nextSelection;
+      }
+      function updateSelection(nextSelection) {
+        if (!nextSelection || !selectedRow)
+          return;
+        updateRow(selectedRow, nextSelection);
+      }
+      function newSelection(value) {
+        var extent = 0;
+        if (prefixBits !== null && !isNaN(prefixBits)) {
+          extent = 1 << (8 - prefixBits);
+        } else {
+          value = 0;
+        }
+        return { index: value & ~(extent - 1), extent: extent };
+      }
+      function newRow() {
+        var retval = {
+          uint8Field: addRowInUint8Field(),
+          allocationTable: addRowInAllocationTable(),
+          color: colors[nextColorIndex].toString(),
+          type: null,
+          selection: { index: 0, extent: 0 }
+        };
+        var $typeSelect = retval.allocationTable.$.find('td.type select')
+        function updateType(type) {
+          var i;
+          for (i = 0; i < types.length; i++) {
+            if (types[i] === type)
+              break;
+          }
+          var $bits = retval.allocationTable.$.find('td.bits');
+          $bits.empty();
+          types[i].initialize($bits);
+          retval.type = type;
+          $typeSelect.find('option').attr('selected', '');
+          $typeSelect.find('option[value="' + i + '"]').attr('selected', 'selected');
+          updateRow(retval, retval.selection);
+        }
+        $typeSelect.bind('change', function () {
+          updateType(types[parseInt(this.value)]);
+        });
+        updateType(types[0]);
+        return retval;
+      }
+      function bindRowEvent() {
+        var mouseover = function mouseover (e) {
+          var nextSelection = newSelection(parseInt(e.target.getAttribute('data-value')));
+          if (selectedRow.selection.index != nextSelection.index || selectedRow.selection.extent != nextSelection.extent) {
+            updateSelection(nextSelection);
+          }
+        };
+        var mouseout = function mouseout (e) {
+          updateSelection({ index: 0, extent: 0 });
+        };
+        var mousedown = function mousedown (e) {
+          unbindRowEvent();
+          rows.push(selectedRow);
+          nextColorIndex++;
+          selectedRow = newRow();
+          bindRowEvent();
+        };
+        selectedRow.uint8Field.$.bind('mouseover', mouseover);
+        selectedRow.uint8Field.$.bind('mouseout', mouseout);
+        selectedRow.uint8Field.$.bind('mousedown', mousedown);
+        selectedRow.uint8Field.handlers.mouseover = mouseover;
+        selectedRow.uint8Field.handlers.mouseout = mouseout;
+        selectedRow.uint8Field.handlers.mousedown = mousedown;
+      }
+      function unbindRowEvent() {
+        selectedRow.uint8Field.$.unbind('mouseover', selectedRow.uint8Field.handlers.mouseover);
+        selectedRow.uint8Field.$.unbind('mouseout', selectedRow.uint8Field.handlers.mouseout);
+        selectedRow.uint8Field.$.unbind('mousedown', selectedRow.uint8Field.handlers.mousedown);
+        selectedRow.uint8Field.mouseover = null;
+        selectedRow.uint8Field.mouseout = null;
+        selectedRow.uint8Field.mousedown = null;
+      }
+    
+      (function ($prefixBits) {
+        function onChange() {
+          var value = parseInt(this.value);
+          if (isNaN(value) || value < 0 || value > 8) {
+            $prefixBits.addClass('error');
+            prefixBits = null;
+            updateSelection(newSelection(null));
+          } else {
+            $prefixBits.removeClass('error');
+            prefixBits = value;
+            updateSelection(newSelection(null));
+          }
+        }
+        $prefixBits.bind('change', onChange);
+        onChange.call($prefixBits[0]);
+      })($('#prefixBits'));
+      selectedRow = newRow();
+      updateSelection(selectedRow.selection);
+      bindRowEvent();
+    })();
+  </script>
+</body>
+</html>
+
